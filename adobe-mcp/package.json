@@ -1,0 +1,15 @@
+{
+  "name": "adobe-analytics-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local MCP server exposing Adobe Analytics Reporting API 2.0 as tools",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "dotenv": "^16.4.0",
+    "zod": "^3.23.0"
+  }
+}

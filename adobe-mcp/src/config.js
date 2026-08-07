@@ -1,6 +1,8 @@
 "use strict";
 
-require("dotenv").config();
+const path = require("path");
+
+require("dotenv").config({ path: path.resolve(__dirname, "..", ".env") });
 
 const REQUIRED_VARS = [
   "ADOBE_CLIENT_ID",

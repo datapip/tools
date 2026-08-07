@@ -228,6 +228,7 @@ is misconfigured.
 | `listMetrics(reportSuiteId)` | Resolve terms like "sales" to actual metric IDs for that suite |
 | `listDimensions(reportSuiteId)` | Same, for dimensions |
 | `runReport(reportSuiteId, metrics[], dimension?, startDate, endDate, segments?)` | Executes the actual report via `POST /reports` |
+| `runBreakdownReport(reportSuiteId, metrics[], dimension, breakdownDimension, breakdownItemId, startDate, endDate, segments?)` | Second step of a drill-down: breaks down by `dimension`, restricted to rows where `breakdownDimension` equals `breakdownItemId` |
 
 Keep tools few and flexible rather than many and narrow — let the LLM compose them
 rather than trying to anticipate every phrasing of a question server-side.
@@ -235,9 +236,11 @@ rather than trying to anticipate every phrasing of a question server-side.
 **`dimension` is singular, not an array.** Adobe's `POST /reports` endpoint only
 supports one breakdown dimension per call — real multi-dimension breakdown
 requires sequential drill-down calls (filter by `itemId` per value of the first
-dimension), which this project doesn't implement. If a question needs more than
-one dimension of breakdown, the LLM should call `runReport` more than once
-rather than expecting this server to do the drill-down itself.
+dimension). `runBreakdownReport` is that second call: resolve an item ID for the
+first dimension (via `runReport` or `listDimensions`), then call
+`runBreakdownReport` to break down a second dimension within just that item.
+For breakdowns beyond two dimensions, the LLM should chain more calls rather
+than expecting this server to do the drill-down itself.
 
 ## Adobe API specifics to remember
 

@@ -115,6 +115,48 @@ server.registerTool(
     )
 );
 
+server.registerTool(
+  "runBreakdownReport",
+  {
+    title: "Run Breakdown Report",
+    description:
+      `Execute an Adobe Analytics report broken down by 'dimension', restricted to rows where ` +
+      `'breakdownDimension' equals a specific 'breakdownItemId'. This is the second step of a ` +
+      `two-dimension drill-down: first call runReport (or listDimensions) to find the item ID for ` +
+      `the dimension you want to filter by, then call this tool to see a second dimension broken ` +
+      `down within just that one item. Today's date is ${TODAY} — compute startDate/endDate from ` +
+      `this for relative ranges like "last week". Resolve metric/dimension IDs via ` +
+      `listMetrics/listDimensions first, and reportSuiteId via listReportSuites.`,
+    inputSchema: {
+      reportSuiteId: z.string().describe("The report suite ID, from listReportSuites"),
+      metrics: z.array(z.string()).describe("One or more metric IDs, from listMetrics"),
+      dimension: z.string().describe("Dimension ID to break rows down by in the results, from listDimensions"),
+      breakdownDimension: z
+        .string()
+        .describe("Dimension ID being filtered on, from a prior listDimensions/runReport call"),
+      breakdownItemId: z
+        .string()
+        .describe("The specific item ID (from that prior call's results) to restrict rows to"),
+      startDate: z.string().describe("ISO date (YYYY-MM-DD), inclusive"),
+      endDate: z.string().describe("ISO date (YYYY-MM-DD), exclusive — see runReport's dateRange note in CLAUDE.md"),
+      segments: z.array(z.string()).optional().describe("Optional list of segment IDs to filter by"),
+    },
+  },
+  async (args) =>
+    callTool(() =>
+      adobeApi.runBreakdownReport(
+        args.reportSuiteId,
+        args.metrics,
+        args.dimension,
+        args.breakdownDimension,
+        args.breakdownItemId,
+        args.startDate,
+        args.endDate,
+        args.segments
+      )
+    )
+);
+
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);

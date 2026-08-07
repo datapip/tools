@@ -40,6 +40,10 @@ function parseApiResponse({ data, error }, context) {
   return parsed;
 }
 
+/**
+ * List all Adobe Analytics report suites accessible to this integration.
+ * @returns {Promise<object>} parsed Adobe API response containing the report suite list
+ */
 async function listReportSuites() {
   const headers = await buildHeaders();
   const path = `/api/${config.globalCompanyId}/collections/suites`;
@@ -48,6 +52,11 @@ async function listReportSuites() {
   return parseApiResponse(response, "listReportSuites");
 }
 
+/**
+ * List all metrics available for a given report suite.
+ * @param {string} reportSuiteId - the report suite ID, from listReportSuites
+ * @returns {Promise<object>} parsed Adobe API response containing the metric list
+ */
 async function listMetrics(reportSuiteId) {
   const headers = await buildHeaders();
   const path = `/api/${config.globalCompanyId}/metrics?rsid=${encodeURIComponent(
@@ -58,6 +67,11 @@ async function listMetrics(reportSuiteId) {
   return parseApiResponse(response, "listMetrics");
 }
 
+/**
+ * List all dimensions available for a given report suite.
+ * @param {string} reportSuiteId - the report suite ID, from listReportSuites
+ * @returns {Promise<object>} parsed Adobe API response containing the dimension list
+ */
 async function listDimensions(reportSuiteId) {
   const headers = await buildHeaders();
   const path = `/api/${config.globalCompanyId}/dimensions?rsid=${encodeURIComponent(
@@ -68,6 +82,16 @@ async function listDimensions(reportSuiteId) {
   return parseApiResponse(response, "listDimensions");
 }
 
+/**
+ * Execute a report for one or more metrics, optionally broken down by a single dimension.
+ * @param {string} reportSuiteId
+ * @param {string[]} metrics - metric IDs, from listMetrics
+ * @param {string|null} dimension - optional single dimension ID to break down by, from listDimensions
+ * @param {string} startDate - ISO date (YYYY-MM-DD), inclusive
+ * @param {string} endDate - ISO date (YYYY-MM-DD), exclusive
+ * @param {string[]} [segments] - optional segment IDs to filter by
+ * @returns {Promise<object>} parsed Adobe API response containing the report rows
+ */
 async function runReport(reportSuiteId, metrics, dimension, startDate, endDate, segments) {
   const headers = await buildHeaders();
   const path = `/api/${config.globalCompanyId}/reports`;
@@ -109,4 +133,69 @@ async function runReport(reportSuiteId, metrics, dimension, startDate, endDate, 
   return parseApiResponse(response, "runReport");
 }
 
-module.exports = { listReportSuites, listMetrics, listDimensions, runReport };
+/**
+ * Run a report on `dimension`, restricted to rows where `breakdownDimension`
+ * equals `breakdownItemId` — the second call in a sequential drill-down
+ * (see CLAUDE.md's "dimension is singular" note under MCP tools).
+ * @param {string} reportSuiteId
+ * @param {string[]} metrics - metric IDs, from listMetrics
+ * @param {string} dimension - dimension ID to break down by in the results, from listDimensions
+ * @param {string} breakdownDimension - the dimension ID being filtered on, from a prior listDimensions/runReport call
+ * @param {string} breakdownItemId - the specific item ID (from that prior call's results) to restrict to
+ * @param {string} startDate - ISO date (YYYY-MM-DD), inclusive
+ * @param {string} endDate - ISO date (YYYY-MM-DD), exclusive
+ * @param {string[]} [segments] - optional segment IDs to filter by
+ * @returns {Promise<object>} parsed Adobe API response containing the breakdown rows
+ */
+async function runBreakdownReport(
+  reportSuiteId,
+  metrics,
+  dimension,
+  breakdownDimension,
+  breakdownItemId,
+  startDate,
+  endDate,
+  segments
+) {
+  const headers = await buildHeaders();
+  const path = `/api/${config.globalCompanyId}/reports`;
+
+  const globalFilters = [
+    {
+      type: "dateRange",
+      dateRange: `${startDate}T00:00:00.000/${endDate}T00:00:00.000`,
+    },
+  ];
+
+  if (Array.isArray(segments)) {
+    for (const segmentId of segments) {
+      globalFilters.push({ type: "segment", segmentId });
+    }
+  }
+
+  const body = JSON.stringify({
+    rsid: reportSuiteId,
+    globalFilters,
+    metricContainer: {
+      metrics: metrics.map((metricId, index) => ({
+        columnId: String(index),
+        id: metricId,
+        filters: ["0"],
+      })),
+      metricFilters: [
+        {
+          id: "0",
+          type: "breakdown",
+          dimension: breakdownDimension,
+          itemId: breakdownItemId,
+        },
+      ],
+    },
+    dimension,
+  });
+
+  const response = await POST(ANALYTICS_HOST, path, body, headers);
+  return parseApiResponse(response, "runBreakdownReport");
+}
+
+module.exports = { listReportSuites, listMetrics, listDimensions, runReport, runBreakdownReport };

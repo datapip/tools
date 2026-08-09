@@ -81,6 +81,25 @@ server.registerTool(
 // for now since opencode spawns a fresh process per session.
 const TODAY = new Date().toISOString().slice(0, 10);
 
+// Shared by runReport and runBreakdownReport. Each entry is either a saved
+// segment ID string, or an inline ad hoc segment definition object — Adobe's
+// own segment JSON shape (confirmed working against a live /reports call on
+// 2026-08-09, see scripts/test-inline-segment.js): { func: "segment",
+// version: [1, 0, 0], container: { func: "container", context: "hits" |
+// "visits" | "visitors", pred: { func: "<operator, e.g. streq/contains/exists/gt/lt>",
+// val: { func: "attr", name: "<dimension ID, e.g. variables/evar2>" },
+// str?: "<value for string operators>", description?: "<human label>" } } }.
+// Use an ad hoc definition when no saved segment already covers the
+// condition; resolve the dimension ID via listDimensions first.
+const segmentsSchema = z
+  .array(z.union([z.string(), z.record(z.any())]))
+  .optional()
+  .describe(
+    "Optional list of filters to restrict rows to a segment. Each entry is either a saved " +
+      "segment ID string, or an inline ad hoc segment definition object (Adobe's segment " +
+      "JSON: func/container/context/pred/val — build one when no saved segment fits)."
+  );
+
 server.registerTool(
   "runReport",
   {
@@ -99,7 +118,7 @@ server.registerTool(
         .describe("Optional single dimension ID to break rows down by, from listDimensions"),
       startDate: z.string().describe("ISO date (YYYY-MM-DD), inclusive"),
       endDate: z.string().describe("ISO date (YYYY-MM-DD), exclusive — see runReport's dateRange note in CLAUDE.md"),
-      segments: z.array(z.string()).optional().describe("Optional list of segment IDs to filter by"),
+      segments: segmentsSchema,
     },
   },
   async (args) =>
@@ -139,7 +158,7 @@ server.registerTool(
         .describe("The specific item ID (from that prior call's results) to restrict rows to"),
       startDate: z.string().describe("ISO date (YYYY-MM-DD), inclusive"),
       endDate: z.string().describe("ISO date (YYYY-MM-DD), exclusive — see runReport's dateRange note in CLAUDE.md"),
-      segments: z.array(z.string()).optional().describe("Optional list of segment IDs to filter by"),
+      segments: segmentsSchema,
     },
   },
   async (args) =>

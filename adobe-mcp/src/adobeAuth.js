@@ -2,6 +2,7 @@
 
 const { POST } = require("../../lib/proxy");
 const config = require("./config");
+const { callProxy } = require("./proxyErrorHandling");
 
 const TOKEN_HOST = "ims-na1.adobelogin.com";
 const TOKEN_PATH = "/ims/token/v3";
@@ -22,9 +23,11 @@ async function requestNewToken() {
     scope: config.scopes,
   }).toString();
 
-  const { data, error } = await POST(TOKEN_HOST, TOKEN_PATH, body, {
-    "Content-Type": "application/x-www-form-urlencoded",
-  });
+  const { data, error } = await callProxy(
+    POST(TOKEN_HOST, TOKEN_PATH, body, {
+      "Content-Type": "application/x-www-form-urlencoded",
+    })
+  );
 
   if (error) {
     throw new Error(`Adobe IMS token request failed: ${error}`);

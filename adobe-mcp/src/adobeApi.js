@@ -3,6 +3,7 @@
 const { GET, POST } = require("../../lib/proxy");
 const config = require("./config");
 const { getAccessToken } = require("./adobeAuth");
+const { callProxy } = require("./proxyErrorHandling");
 
 const ANALYTICS_HOST = "analytics.adobe.io";
 
@@ -48,7 +49,7 @@ async function listReportSuites() {
   const headers = await buildHeaders();
   const path = `/api/${config.globalCompanyId}/collections/suites`;
 
-  const response = await GET(ANALYTICS_HOST, path, headers);
+  const response = await callProxy(GET(ANALYTICS_HOST, path, headers));
   return parseApiResponse(response, "listReportSuites");
 }
 
@@ -63,7 +64,7 @@ async function listMetrics(reportSuiteId) {
     reportSuiteId
   )}`;
 
-  const response = await GET(ANALYTICS_HOST, path, headers);
+  const response = await callProxy(GET(ANALYTICS_HOST, path, headers));
   return parseApiResponse(response, "listMetrics");
 }
 
@@ -78,7 +79,7 @@ async function listDimensions(reportSuiteId) {
     reportSuiteId
   )}`;
 
-  const response = await GET(ANALYTICS_HOST, path, headers);
+  const response = await callProxy(GET(ANALYTICS_HOST, path, headers));
   return parseApiResponse(response, "listDimensions");
 }
 
@@ -89,7 +90,11 @@ async function listDimensions(reportSuiteId) {
  * @param {string|null} dimension - optional single dimension ID to break down by, from listDimensions
  * @param {string} startDate - ISO date (YYYY-MM-DD), inclusive
  * @param {string} endDate - ISO date (YYYY-MM-DD), exclusive
- * @param {string[]} [segments] - optional segment IDs to filter by
+ * @param {(string|object)[]} [segments] - optional list of saved segment IDs and/or inline
+ *   ad hoc segment definitions to filter by. A string entry is sent as `segmentId`; an object
+ *   entry is sent as `segmentDefinition` (Adobe's func/container/pred segment JSON — see
+ *   scripts/test-inline-segment.js for a real, confirmed-working example). Confirmed against a
+ *   live /reports call (2026-08-09) that Adobe accepts segmentDefinition inline.
  * @returns {Promise<object>} parsed Adobe API response containing the report rows
  */
 async function runReport(reportSuiteId, metrics, dimension, startDate, endDate, segments) {
@@ -109,8 +114,12 @@ async function runReport(reportSuiteId, metrics, dimension, startDate, endDate, 
   ];
 
   if (Array.isArray(segments)) {
-    for (const segmentId of segments) {
-      globalFilters.push({ type: "segment", segmentId });
+    for (const segment of segments) {
+      globalFilters.push(
+        typeof segment === "string"
+          ? { type: "segment", segmentId: segment }
+          : { type: "segment", segmentDefinition: segment }
+      );
     }
   }
 
@@ -129,7 +138,7 @@ async function runReport(reportSuiteId, metrics, dimension, startDate, endDate, 
     dimension: dimension || "variables/daterangeday",
   });
 
-  const response = await POST(ANALYTICS_HOST, path, body, headers);
+  const response = await callProxy(POST(ANALYTICS_HOST, path, body, headers));
   return parseApiResponse(response, "runReport");
 }
 
@@ -144,7 +153,11 @@ async function runReport(reportSuiteId, metrics, dimension, startDate, endDate, 
  * @param {string} breakdownItemId - the specific item ID (from that prior call's results) to restrict to
  * @param {string} startDate - ISO date (YYYY-MM-DD), inclusive
  * @param {string} endDate - ISO date (YYYY-MM-DD), exclusive
- * @param {string[]} [segments] - optional segment IDs to filter by
+ * @param {(string|object)[]} [segments] - optional list of saved segment IDs and/or inline
+ *   ad hoc segment definitions to filter by. A string entry is sent as `segmentId`; an object
+ *   entry is sent as `segmentDefinition` (Adobe's func/container/pred segment JSON — see
+ *   scripts/test-inline-segment.js for a real, confirmed-working example). Confirmed against a
+ *   live /reports call (2026-08-09) that Adobe accepts segmentDefinition inline.
  * @returns {Promise<object>} parsed Adobe API response containing the breakdown rows
  */
 async function runBreakdownReport(
@@ -168,8 +181,12 @@ async function runBreakdownReport(
   ];
 
   if (Array.isArray(segments)) {
-    for (const segmentId of segments) {
-      globalFilters.push({ type: "segment", segmentId });
+    for (const segment of segments) {
+      globalFilters.push(
+        typeof segment === "string"
+          ? { type: "segment", segmentId: segment }
+          : { type: "segment", segmentDefinition: segment }
+      );
     }
   }
 
@@ -194,7 +211,7 @@ async function runBreakdownReport(
     dimension,
   });
 
-  const response = await POST(ANALYTICS_HOST, path, body, headers);
+  const response = await callProxy(POST(ANALYTICS_HOST, path, body, headers));
   return parseApiResponse(response, "runBreakdownReport");
 }
 

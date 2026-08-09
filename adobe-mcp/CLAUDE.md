@@ -71,8 +71,9 @@ opencode (MCP client)
    ▼
 Local MCP server (this repo)
    ├── src/index.js        MCP tool registration + stdio transport (thin — no business logic)
-   ├── src/adobeApi.js     listReportSuites / listMetrics / listDimensions / runReport
+   ├── src/adobeApi.js     listReportSuites / listMetrics / listDimensions / runReport / runBreakdownReport
    ├── src/adobeAuth.js    OAuth Server-to-Server token exchange + in-memory cache/refresh
+   ├── src/proxyErrorHandling.js  callProxy() — normalizes lib/proxy.js's resolved-vs-rejected error shapes
    └── src/config.js       loads + validates all env vars once at startup, fails fast
 
    lib/proxy.js — EXISTING shared helper at d:/Development/tools/lib/proxy.js,
@@ -282,6 +283,20 @@ than expecting this server to do the drill-down itself.
   off by one day near a range edge.
 - The Adobe account/technical account used for the S2S credential must belong to a
   product profile with the relevant report suite + metrics/dimensions access.
+- **`globalFilters` segment entries accept an inline definition, not just a saved
+  `segmentId`.** Confirmed against a live `/reports` call (2026-08-09, see
+  `scripts/test-inline-segment.js`): `{ type: "segment", segmentDefinition: {...} }`
+  works, where `segmentDefinition` is Adobe's own segment JSON (`func: "segment"`,
+  `version: [1,0,0]`, `container: { func: "container", context, pred: { func,
+  val: { func: "attr", name }, str?, description? } }`). This is *not* documented
+  in Adobe's own Reports API guide (only `segmentId` is shown there) — the shape
+  was captured live from Analysis Workspace's segment-editor preview traffic, and
+  matches the (separately documented) Segments API's definition format. Analysis
+  Workspace itself never sends this inline — it always persists ad hoc segments to
+  the Segment service first and references them by ID, so this behavior had to be
+  discovered by testing directly against `/reports`, not by observing Workspace.
+  `runReport`/`runBreakdownReport`'s `segments` param accepts either shape per
+  entry (string → `segmentId`, object → `segmentDefinition`).
 
 ## opencode integration
 

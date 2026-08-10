@@ -96,8 +96,14 @@ const segmentsSchema = z
   .optional()
   .describe(
     "Optional list of filters to restrict rows to a segment. Each entry is either a saved " +
-      "segment ID string, or an inline ad hoc segment definition object (Adobe's segment " +
-      "JSON: func/container/context/pred/val — build one when no saved segment fits)."
+      "segment ID string, or an inline ad hoc segment definition object — no wrapper key, " +
+      "the object itself is the definition: { func: \"segment\", version: [1, 0, 0], " +
+      "container: { func: \"container\", context: \"hits\" | \"visits\" | \"visitors\", " +
+      "pred: { func: \"<operator, e.g. streq/contains/exists/gt/lt>\", " +
+      "val: { func: \"attr\", name: \"<dimension ID, e.g. variables/evar2>\" }, " +
+      "str?: \"<value for string operators>\", description?: \"<human label>\" } } }. " +
+      "Use an ad hoc definition when no saved segment already covers the condition; " +
+      "resolve the dimension ID via listDimensions first."
   );
 
 server.registerTool(

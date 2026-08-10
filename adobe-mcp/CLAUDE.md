@@ -284,8 +284,8 @@ than expecting this server to do the drill-down itself.
 - The Adobe account/technical account used for the S2S credential must belong to a
   product profile with the relevant report suite + metrics/dimensions access.
 - **`globalFilters` segment entries accept an inline definition, not just a saved
-  `segmentId`.** Confirmed against a live `/reports` call (2026-08-09, see
-  `scripts/test-inline-segment.js`): `{ type: "segment", segmentDefinition: {...} }`
+  `segmentId`.** Confirmed against a live `/reports` call (2026-08-09):
+  `{ type: "segment", segmentDefinition: {...} }`
   works, where `segmentDefinition` is Adobe's own segment JSON (`func: "segment"`,
   `version: [1,0,0]`, `container: { func: "container", context, pred: { func,
   val: { func: "attr", name }, str?, description? } }`). This is *not* documented
